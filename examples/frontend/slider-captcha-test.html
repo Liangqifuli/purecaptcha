@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滑动验证码测试 - 智能验证算法</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .captcha-container {
+            position: relative;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #backgroundImage {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .slider-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .slider-track {
+            position: relative;
+            height: 50px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 25px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .slider-piece {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            cursor: grab;
+            transition: left 0.1s ease-out;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+
+        .slider-piece:active {
+            cursor: grabbing;
+        }
+
+        .slider-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .result {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+            display: block;
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .debug-info.show {
+            display: block;
+        }
+
+        .debug-info pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 滑动验证码测试</h1>
+        <p class="subtitle">智能验证算法 - 95%成功率</p>
+
+        <div id="result" class="result"></div>
+
+        <div class="captcha-container" id="captchaContainer">
+            <img id="backgroundImage" src="" alt="验证码背景">
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-track">
+                <img id="sliderPiece" class="slider-piece" src="" alt="拼图块">
+                <span class="slider-text">拖动滑块完成拼图</span>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="loadCaptcha()">生成验证码</button>
+            <button class="btn-secondary" onclick="verify()">验证</button>
+            <button class="btn-secondary" onclick="toggleDebug()">调试</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-label">尝试次数</div>
+                <div class="stat-value" id="attemptCount">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">成功次数</div>
+                <div class="stat-value" id="successCount">0</div>
+            </div>
+        </div>
+
+        <div id="debugInfo" class="debug-info">
+            <pre id="debugContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const API_BASE = 'http://localhost:8080/api/captcha'; // 修改为你的后端地址
+        
+        let sliderY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let attemptCount = 0;
+        let successCount = 0;
+
+        // 页面加载时自动生成验证码
+        window.onload = function() {
+            loadCaptcha();
+        };
+
+        // 加载验证码
+        async function loadCaptcha() {
+            try {
+                showResult('正在生成验证码...', 'loading');
+                
+                const response = await fetch(`${API_BASE}/slider`, {
+                    credentials: 'include' // 包含cookie（session）
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('backgroundImage').src = data.data.backgroundImage;
+                    document.getElementById('sliderPiece').src = data.data.sliderImage;
+                    sliderY = data.data.sliderY;
+                    
+                    // 重置滑块位置
+                    resetSlider();
+                    hideResult();
+                } else {
+                    showResult('生成失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showResult('网络错误: ' + error.message, 'error');
+            }
+        }
+
+        // 重置滑块
+        function resetSlider() {
+            currentX = 0;
+            updateSliderPosition();
+        }
+
+        // 验证
+        async function verify() {
+            try {
+                attemptCount++;
+                updateStats();
+                
+                const response = await fetch(`${API_BASE}/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        answer: Math.round(currentX).toString()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    successCount++;
+                    updateStats();
+                    showResult('✅ ' + data.message, 'success');
+                    setTimeout(() => loadCaptcha(), 2000); // 2秒后重新生成
+                } else {
+                    showResult('❌ ' + data.message, 'error');
+                }
+                
+                // 获取调试信息
+                await loadDebugInfo();
+                
+            } catch (error) {
+                showResult('验证失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载调试信息
+        async function loadDebugInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/debug`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        answer: Math.round(currentX).toString()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('debugContent').textContent = data.details;
+                }
+            } catch (error) {
+                console.error('加载调试信息失败:', error);
+            }
+        }
+
+        // 切换调试面板
+        function toggleDebug() {
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.classList.toggle('show');
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('attemptCount').textContent = attemptCount;
+            document.getElementById('successCount').textContent = successCount;
+        }
+
+        // 显示结果
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = 'result ' + type;
+        }
+
+        // 隐藏结果
+        function hideResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+
+        // 滑块拖动
+        const sliderPiece = document.getElementById('sliderPiece');
+        const sliderTrack = document.querySelector('.slider-track');
+
+        // 鼠标事件
+        sliderPiece.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', endDrag);
+
+        // 触摸事件（移动端）
+        sliderPiece.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const deltaX = clientX - startX;
+            
+            // 计算新位置
+            currentX = Math.max(0, Math.min(deltaX, sliderTrack.offsetWidth - 60));
+            updateSliderPosition();
+            
+            e.preventDefault();
+        }
+
+        function endDrag(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // 自动验证
+            verify();
+        }
+
+        function updateSliderPosition() {
+            sliderPiece.style.left = currentX + 'px';
+        }
+
+        // 快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                loadCaptcha();
+            } else if (e.key === 'Enter') {
+                verify();
+            } else if (e.key === 'd' || e.key === 'D') {
+                toggleDebug();
+            }
+        });
+    </script>
+</body>
+</html>
+

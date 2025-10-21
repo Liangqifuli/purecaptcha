@@ -1,0 +1,45 @@
+# Spring Boot 配置文件示例
+# 复制为 application.properties 使用
+
+# 应用名称
+spring.application.name=captcha-demo
+
+# 服务器端口
+server.port=8080
+
+# Session 配置（重要！）
+server.servlet.session.timeout=5m
+server.servlet.session.cookie.max-age=300
+
+# 编码
+spring.http.encoding.charset=UTF-8
+spring.http.encoding.enabled=true
+spring.http.encoding.force=true
+
+# 日志级别
+logging.level.root=INFO
+logging.level.com.example.captcha=DEBUG
+
+# 跨域配置（如果前后端分离）
+# 在 WebConfig 中配置，不在这里
+
+# 静态资源路径（如果需要）
+spring.web.resources.static-locations=classpath:/static/
+
+# JSON配置
+spring.jackson.date-format=yyyy-MM-dd HH:mm:ss
+spring.jackson.time-zone=GMT+8
+
+# ==========================================
+# Redis 配置（如果使用分布式）- 可选
+# ==========================================
+# spring.redis.host=localhost
+# spring.redis.port=6379
+# spring.redis.password=
+# spring.redis.database=0
+# spring.redis.timeout=3000
+# spring.redis.jedis.pool.max-active=8
+# spring.redis.jedis.pool.max-wait=-1
+# spring.redis.jedis.pool.max-idle=8
+# spring.redis.jedis.pool.min-idle=0
+

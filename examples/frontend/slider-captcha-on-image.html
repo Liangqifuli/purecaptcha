@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滑动验证码测试 - 拼图在图片上</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .captcha-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #backgroundImage {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* 拼图块直接在图片上 */
+        .slider-piece-on-image {
+            position: absolute;
+            cursor: grab;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+            transition: left 0.05s ease-out;
+            z-index: 10;
+        }
+
+        .slider-piece-on-image:active {
+            cursor: grabbing;
+        }
+
+        /* 滑动条（简化版，只显示进度） */
+        .slider-track {
+            position: relative;
+            height: 50px;
+            background: #f0f0f0;
+            border-radius: 25px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .slider-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.1s ease-out;
+        }
+
+        .slider-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .result {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+            display: block;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .hint {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 滑动验证码测试</h1>
+        <p class="subtitle">拼图块在图片上 - 智能验证算法</p>
+
+        <div id="result" class="result"></div>
+
+        <!-- 验证码容器 -->
+        <div class="captcha-wrapper" id="captchaWrapper">
+            <img id="backgroundImage" src="" alt="验证码背景">
+            <!-- 拼图块直接在图片上 -->
+            <img id="sliderPieceOnImage" class="slider-piece-on-image" src="" alt="拼图块">
+        </div>
+
+        <!-- 进度条 -->
+        <div class="slider-track">
+            <div class="slider-progress" id="sliderProgress"></div>
+            <span class="slider-text" id="sliderText">拖动拼图块完成验证</span>
+        </div>
+
+        <p class="hint">💡 提示：拖动图片上的拼图块到正确位置</p>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="loadCaptcha()">生成验证码</button>
+            <button class="btn-secondary" onclick="verify()">验证</button>
+            <button class="btn-secondary" onclick="resetSlider()">重置</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-label">尝试次数</div>
+                <div class="stat-value" id="attemptCount">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">成功次数</div>
+                <div class="stat-value" id="successCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const API_BASE = 'http://localhost:8080/api/captcha'; // 修改为你的后端地址
+        
+        let sliderY = 0;
+        let captchaWidth = 0;
+        let captchaHeight = 0;
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let attemptCount = 0;
+        let successCount = 0;
+
+        // 页面加载时自动生成验证码
+        window.onload = function() {
+            loadCaptcha();
+        };
+
+        // 加载验证码
+        async function loadCaptcha() {
+            try {
+                showResult('正在生成验证码...', 'loading');
+                
+                const response = await fetch(`${API_BASE}/slider`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const bgImg = document.getElementById('backgroundImage');
+                    const sliderImg = document.getElementById('sliderPieceOnImage');
+                    
+                    bgImg.src = data.data.backgroundImage;
+                    sliderImg.src = data.data.sliderImage;
+                    sliderY = data.data.sliderY;
+                    
+                    // 等待图片加载完成
+                    bgImg.onload = function() {
+                        captchaWidth = bgImg.clientWidth;
+                        captchaHeight = bgImg.clientHeight;
+                        
+                        // 设置拼图块位置和大小（同比例缩放）
+                        const scale = captchaWidth / 350; // 350是后端生成的宽度
+                        const puzzleSize = 60 * scale; // 拼图块原始大小60px
+                        
+                        sliderImg.style.top = (sliderY * scale) + 'px';
+                        sliderImg.style.width = puzzleSize + 'px';
+                        sliderImg.style.height = puzzleSize + 'px'; // 🔑 关键：同时设置高度
+                        
+                        resetSlider();
+                    };
+                    
+                    hideResult();
+                } else {
+                    showResult('生成失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showResult('网络错误: ' + error.message, 'error');
+            }
+        }
+
+        // 重置滑块
+        function resetSlider() {
+            currentX = 0;
+            updateSliderPosition();
+        }
+
+        // 更新滑块位置
+        function updateSliderPosition() {
+            const sliderImg = document.getElementById('sliderPieceOnImage');
+            sliderImg.style.left = currentX + 'px';
+            
+            // 更新进度条
+            const progress = document.getElementById('sliderProgress');
+            const percentage = (currentX / captchaWidth) * 100;
+            progress.style.width = percentage + '%';
+            
+            // 更新提示文字
+            const text = document.getElementById('sliderText');
+            if (currentX > 0) {
+                text.textContent = Math.round(currentX) + 'px';
+                text.style.color = '#333';
+            } else {
+                text.textContent = '拖动拼图块完成验证';
+                text.style.color = '#666';
+            }
+        }
+
+        // 验证
+        async function verify() {
+            try {
+                attemptCount++;
+                updateStats();
+                
+                // 计算实际X坐标（考虑缩放）
+                const scale = 350 / captchaWidth; // 转换回后端坐标
+                const actualX = Math.round(currentX * scale);
+                
+                const response = await fetch(`${API_BASE}/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        answer: actualX.toString()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    successCount++;
+                    updateStats();
+                    showResult('✅ ' + data.message + ' (位置: ' + actualX + 'px)', 'success');
+                    setTimeout(() => loadCaptcha(), 2000);
+                } else {
+                    showResult('❌ ' + data.message + ' (位置: ' + actualX + 'px)', 'error');
+                }
+                
+            } catch (error) {
+                showResult('验证失败: ' + error.message, 'error');
+            }
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('attemptCount').textContent = attemptCount;
+            document.getElementById('successCount').textContent = successCount;
+        }
+
+        // 显示结果
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = 'result ' + type;
+        }
+
+        // 隐藏结果
+        function hideResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+
+        // 拖动事件
+        const sliderPiece = document.getElementById('sliderPieceOnImage');
+        const captchaWrapper = document.getElementById('captchaWrapper');
+
+        // 鼠标事件
+        sliderPiece.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', endDrag);
+
+        // 触摸事件（移动端）
+        sliderPiece.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            const rect = sliderPiece.getBoundingClientRect();
+            startX = clientX - rect.left;
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const wrapperRect = captchaWrapper.getBoundingClientRect();
+            const sliderWidth = sliderPiece.clientWidth;
+            
+            // 计算新位置（相对于容器）
+            let newX = clientX - wrapperRect.left - startX;
+            
+            // 限制在容器范围内
+            currentX = Math.max(0, Math.min(newX, captchaWidth - sliderWidth));
+            updateSliderPosition();
+            
+            e.preventDefault();
+        }
+
+        function endDrag(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // 自动验证
+            if (currentX > 10) { // 移动超过10px才验证
+                verify();
+            }
+        }
+
+        // 快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                loadCaptcha();
+            } else if (e.key === 'Enter') {
+                verify();
+            } else if (e.key === 'Escape') {
+                resetSlider();
+            }
+        });
+    </script>
+</body>
+</html>
+
